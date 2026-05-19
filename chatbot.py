@@ -1,6 +1,7 @@
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
+import streamlit as st
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("chatkey"))
@@ -15,40 +16,74 @@ Always respond using this format:
 4. Feedback(only if code snippet is provided)
 """
 
-conversation = [
-    {"role": "system", "content": system_prompt}
-]
+st.set_page_config(
+    page_title="AI Python Tutor",
+    page_icon="🤖",
+    layout="centered"
+)
+st.title("AI Python Tutor")
 
-while True:
+st.write("Welcome to the AI Python Tutor! Ask me anything about Python programming, "
+         "and I'll do my best to help you learn. You can also share code snippets, "
+         "and I'll provide feedback on them."
+)
 
-    user_input = input("You: ")
+# Initialize chat history
+if "conversation" not in st.session_state:
 
-    if user_input.lower() in ["quit", "exit", "bye", "end", "stop"]:
-        break
+    st.session_state.conversation = [
+        {"role": "system", "content": system_prompt}
+    ]
 
-    if user_input.lower() in ["def", "print", "for", "while", "if", "else", "elif"]:
-        conversation.append({
+# Display previous messages
+for message in st.session_state.conversation:
+
+    if message["role"] == "user":
+        with st.chat_message("user"):
+            st.markdown(message["content"])
+
+    elif message["role"] == "assistant":
+        with st.chat_message("assistant"):
+            st.markdown(message["content"])
+
+# Chat input
+user_input = st.chat_input("Type your Python question here...")
+
+if user_input:
+
+    # Display user message
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # Detect code snippets
+    code_keywords = ["def", "print", "for", "while", "if", "else", "elif", "="]
+
+    if any(keyword in user_input for keyword in code_keywords):
+
+        st.session_state.conversation.append({
             "role": "system",
-            "content": "the following will be a code snippet:"
+            "content": "The user may provide Python code. "
+                       "Provide debugging help if needed."
         })
 
-    conversation.append({
+    st.session_state.conversation.append({
         "role": "user",
         "content": user_input
     })
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=conversation,
+        messages=st.session_state.conversation,
         temperature=0.7
     )
 
     tutor_reply = response.choices[0].message.content
 
-    print("\nTutor:\n")
-    print(tutor_reply)
+    # Display response
+    with st.chat_message("assistant"):
+        st.markdown(tutor_reply)
 
-    conversation.append({
+    st.session_state.conversation.append({
         "role": "assistant",
         "content": tutor_reply
     })
